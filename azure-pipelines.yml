@@ -1,0 +1,83 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+
+- stage: Build
+  displayName: Build stage
+  jobs:
+    - job: BuildJob
+      steps:
+
+      - task: ArchiveFiles@2
+        displayName: 'Archive files'
+        inputs:
+          rootFolderOrFile: 'code'
+          includeRootFolder: false
+          archiveType: zip
+          archiveFile: $(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip
+          replaceExistingArchive: true
+
+      - task: CopyFiles@2
+        inputs:
+          SourceFolder: '$(build.sourcesdirectory)'
+          Contents: |
+            **/*.sql
+            **/*.yml
+          TargetFolder: '$(build.artifactstagingdirectory)'
+
+      - task: PublishPipelineArtifact@1
+        inputs:
+          targetPath: '$(Build.ArtifactStagingDirectory)'
+          artifact: 'drop'
+          publishLocation: 'pipeline'
+
+- stage: Deploy
+  displayName: Deploy Infra With Ansible
+  jobs:
+    - job: DeployAnsible
+      steps:
+
+      - task: replacetokens@3
+        inputs:
+          targetFiles: '**/InfraDeploy.yml'
+          encoding: 'auto'
+          writeBOM: true
+          actionOnMissing: 'warn'
+          keepToken: false
+          tokenPrefix: '__'
+          tokenSuffix: '__'
+          useLegacyPattern: false
+          enableTelemetry: true
+
+      - task: Ansible@0
+        inputs:
+          ansibleInterface: 'remoteMachine'
+          connectionOverSsh: 'AnsibleVMSSH'
+          playbookSourceRemoteMachine: 'agentMachine'
+          playbookRootRemoteMachine: '/home/vsts/work/1/s/ansible/'
+          playbookPathOnAgentMachine: '/home/vsts/work/1/s/ansible/'
+          playbookPathLinkedArtifactOnRemoteMachine: 'InfraDeploy.yml'
+          inventoriesRemoteMachine: 'hostList'
+          inventoryHostListRemoteMachine: 'ansible-lab.eastus.cloudapp.azure.com'
+          failOnStdErr: false
+
+      - task: DownloadPipelineArtifact@2
+        inputs:
+          buildType: 'current'
+          targetPath: '$(Build.ArtifactStagingDirectory)'
+      - task: AzureRmWebAppDeployment@4
+        inputs:
+          ConnectionType: 'AzureRM'
+          azureSubscription: '$(Suscripcion)'
+          appType: 'webAppLinux'
+          WebAppName: '$(WebApp)'
+          packageForLinux: '$(Build.ArtifactStagingDirectory)/**/*.zip'

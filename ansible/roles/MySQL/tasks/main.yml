@@ -1,0 +1,45 @@
+---
+- name: Create MySQL Server
+  azure_rm_mysqlserver:
+    resource_group: "{{ resource_group }}"
+    name: "{{ mysqlserver_name }}"
+    sku:
+      name: B_Gen5_1
+      tier: Basic
+    location: "{{ location }}"
+    version: "5.7"
+    enforce_ssl: False
+    admin_username: "{{ admin_username }}"
+    admin_password: "{{ admin_password }}"
+    storage_mb: 51200
+
+- name: Open firewall to access MySQL Server from outside
+  azure_rm_resource:
+    api_version: '2017-12-01'
+    resource_group: "{{ resource_group }}"
+    provider: dbformysql
+    resource_type: servers
+    resource_name: "{{ mysqlserver_name }}"
+    subresource:
+      - type: firewallrules
+        name: externalaccess
+    body:
+      properties:
+        startIpAddress: "0.0.0.0"
+        endIpAddress: "0.0.0.0"
+
+- name: Create instance of MySQL Database
+  azure_rm_mysqldatabase:
+    resource_group: "{{ resource_group }}"
+    server_name: "{{ mysqlserver_name }}"
+    name: "{{ mysqldb_name }}"
+
+- name: download users.sql file
+  get_url:
+    url: https://raw.githubusercontent.com/jmartinperalta/crud/master/sql/users.sql
+    dest: /home/martin/users.sql
+
+
+- name: Import SQL File
+  shell: mysql -h {{ mysqlserver_name }}.mysql.database.azure.com -u {{ admin_username }}@{{ mysqlserver_name }} --password={{ admin_password }} {{ mysqldb_name }} < /home/martin/users.sql
+...

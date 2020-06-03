@@ -1,0 +1,46 @@
+---
+- hosts: localhost
+
+  vars:
+    resource_group: __ResourceGroup__
+    location: __Location__
+    webapp_name: __WebApp__
+    mysqlserver_name: __SQLServer__
+    mysqldb_name: __SQLDataBase__
+    admin_username: __Usuario__
+    admin_password: __Password__
+    myAppServicePlan: __ServicePlan__
+    AZ_Pass: __AZPass__
+    AZ_User: __AZUser__
+
+  tasks:
+
+    - name: Install MySQL Command Line
+      apt:
+        name: mysql-client
+        state: present
+        update_cache: yes
+      become: True
+
+    - name: Download AzureCli Install Script
+      get_url:
+        url: https://aka.ms/InstallAzureCLIDeb
+        dest: /home/martin/deb_install.sh
+
+    - name: Install Azure Cli
+      command: bash /home/martin/deb_install.sh
+      become: True
+
+    - name: Create a resource group
+      azure_rm_resourcegroup:
+        name: "{{ resource_group }}"
+        location: "{{ location }}"
+
+    - name: Deploy Infra MySQL
+      include_role:
+        name: MySQL
+
+    - name: deploy Infra WebApp
+      include_role:
+        name: WebApp
+...
