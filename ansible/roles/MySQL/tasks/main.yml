@@ -36,7 +36,7 @@
 
 - name: download users.sql file
   get_url:
-    url: https://raw.githubusercontent.com/jmartinperalta/crud/master/sql/users.sql
+    url: https://github.com/MartinManganiello/ansible-final/blob/master/sql/users.sql
     dest: /home/martin/users.sql
 
 
